@@ -35,3 +35,15 @@ with the provider you are using
 Equivalent?:
 security_groups = ["sg-0000"]
 vpc_security_group_ids = ["sg-0000"] --> seems to be the preferred choice by Terraform
+
+
+- Depends on syntax can create explicit build order dependencies
+  -   `depends_on = [aws_s3_bucket.example]`
+
+- Provisioners: used to setup things on an ec2 instance (or other things) after it's started
+  - Example:
+  - ```
+        provisioner "local-exec" {
+        command = "echo ${aws_instance.example.public_ip} > ip_address.txt"
+    }
+    ```
