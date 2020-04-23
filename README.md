@@ -87,4 +87,19 @@ resource "aws_instance" "example" {
   - Tainted refers to resources that exist but are not safe to use because the provisioning failed
   - During the next apply, Terraform will destroy tainted resources and try to re-create them
 - Provisioners can be setup to run only on a destroy for a resource. Meaning they would run any scripts to get data off the instance before it's shut down, or anything else you would want a resource to do before it is deleted
-- 
+
+
+
+
+#### Variables
+- Files can be called anything since terraform will just load anything in a directory that ends in .tf
+- You can create variable files that hold variables specifically
+  - File must be named terraform.tfvars or for a different name you can put *.auto.tfvars -> These files will be read as variable files
+  - If these files are present in the current directory, terraform will automatically load them to populate variables
+- variables.tf files are for defining variables
+  - default values can be set here. If no assignment happens ina terraform.tfvars file, the default will be used
+- terraform.tfvars files are for setting the actual values for the variables in the variables files
+
+- Typing of variables
+  - Example: If a map's data is set in the terraform.tfvars file, the variable must still be declared
+    separately with either `type="map" or default={}
