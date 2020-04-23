@@ -178,3 +178,118 @@ EOF
 ```
 
 
+# Terraform .11 -> .12
+- First class experession syntax changes, allowing you to not need to wrap everyting in string interpolation
+- Before:
+```
+variable "base_network_cidr" {
+  default = "10.0.0.0/8"
+}
+
+resource "google_compute_network" "example" {
+  name                    = "test-network"
+  auto_create_subnetworks = false
+}
+
+resource "google_compute_subnetwork" "example" {
+  count = 4
+
+  name          = "test-subnetwork"
+  ip_cidr_range = "${cidrsubnet(var.base_network_cidr, 4, count.index)}"
+  region        = "us-central1"
+  network       = "${google_compute_network.custom-test.self_link}"
+}
+```
+After:
+```
+variable "base_network_cidr" {
+  default = "10.0.0.0/8"
+}
+
+resource "google_compute_network" "example" {
+  name                    = "test-network"
+  auto_create_subnetworks = false
+}
+
+resource "google_compute_subnetwork" "example" {
+  count = 4
+
+  name          = "test-subnetwork"
+  ip_cidr_range = cidrsubnet(var.base_network_cidr, 4, count.index)
+  region        = "us-central1"
+  network       = google_compute_network.custom-test.self_link
+}
+
+```
+
+
+<hr>
+
+### Passable objects instead of just strings
+
+ If one module creates an AWS VPC and some subnets, and another module depends on those resources, we would previously need to pass all of the necessary attributes as separate output values and input variables:
+
+```
+module "network" {
+  source = "./modules/network"
+
+  base_network_cidr = "10.0.0.0/8"
+}
+
+module "consul_cluster" {
+  source = "./modules/aws-consul-cluster"
+
+  vpc_id         = module.network.vpc_id
+  vpc_cidr_block = module.network.vpc_cidr_block
+  subnet_ids     = module.network.subnet_ids
+}
+```
+Terraform 0.12's generalized type system makes composition more convenient by giving more options for passing objects and other values between modules. For example, the "network" module could instead be written to return the whole VPC object and a list of subnet objects, allowing them to be passed as a whole:
+
+```
+module "network" {
+  source = "./modules/network"
+
+  base_network_cidr = "10.0.0.0/8"
+}
+
+module "consul_cluster" {
+  source = "./modules/aws-consul-cluster"
+
+  vpc     = module.network.vpc
+  subnets = module.network.subnets
+}
+```
+
+Alternatively, if two modules are more tightly coupled to one another, you might choose to just pass the whole source module itself:
+
+```
+module "network" {
+  source = "./modules/network"
+
+  base_network_cidr = "10.0.0.0/8"
+}
+
+module "consul_cluster" {
+  source = "./modules/aws-consul-cluster"
+
+  network = module.network
+}
+```
+This capability relies on the ability to specify complex types for input variables in modules. For example, the "network" variable in the aws-consul-cluster module might be declared like this:
+
+```
+variable "network" {
+  type = object({
+    vpc = object({
+      id         = string
+      cidr_block = string
+    })
+    subnets = set(object({
+      id         = string
+      cidr_block = string
+    }))
+  })
+}
+```
+
