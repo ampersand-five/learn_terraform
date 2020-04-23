@@ -91,7 +91,7 @@ resource "aws_instance" "example" {
 
 
 
-#### Variables
+## Variables
 - Files can be called anything since terraform will just load anything in a directory that ends in .tf
 - You can create variable files that hold variables specifically
   - File must be named terraform.tfvars or for a different name you can put *.auto.tfvars -> These files will be read as variable files
@@ -103,3 +103,78 @@ resource "aws_instance" "example" {
 - Typing of variables
   - Example: If a map's data is set in the terraform.tfvars file, the variable must still be declared
     separately with either `type="map" or default={}
+
+#### Outputs
+- Can be defined in any *.tf file
+- Outputs variable at end of `terraform apply`
+- You can query output variables after an apply by usign `terraform output <variable>` like this `terraform output ip`
+  - Useful for scripts to get outputs
+
+
+## Modules
+- A module is simply a folder with .tf files in it
+  - In that sense, everything is a module. The folder you call terraform apply from is the root module
+  - You can call modules from other folders with a module block in your .tf file.
+  - You can use local or remote modules. It is possible to setup a TF registry or use github or http urls for remote modules
+- Terraform has a public registry of useful modules you can use
+- To reference where a module is, you use the `source` argument
+  - There is also a `version` arguments you can use to specify a version of the module to use
+- Other arguments that are defined in a module block are treated as input variables to the modules themselves
+- Modules can have output variables
+  - You can reference them using: `module.<module_name>.<output_var_name>`
+- `terraform init` pulls in any specified modules
+- Typical file structure for a module:
+  - `$ tree minimal-module/`
+  - 
+        .
+        ├── LICENSE
+        ├── README.md
+        ├── main.tf
+        ├── variables.tf
+        ├── outputs.tf
+
+- Modules inherit their providers from the calling configuration, so there is no need for a provider block
+- Output variables defined by a module must be defined again in a root module for them to surface in the
+root module that is calling another module
+Example:
+module outputs.tf:
+```
+output "arn" {
+  description = "ARN of the bucket"
+  value       = aws_s3_bucket.s3_bucket.arn
+}
+```
+The root module using that now can make that variable available from itself like so:
+root module example.tf:
+```
+output "website_bucket_arn" {
+  description = "ARN of the bucket"
+  value       = module.website_s3_bucket.arn
+}
+```
+
+
+
+- You can set policies explicitly like this:
+```
+ policy = <<EOF
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Sid": "PublicReadGetObject",
+            "Effect": "Allow",
+            "Principal": "*",
+            "Action": [
+                "s3:GetObject"
+            ],
+            "Resource": [
+                "arn:aws:s3:::${var.bucket_name}/*"
+            ]
+        }
+    ]
+}
+EOF
+```
+
+
